@@ -1,0 +1,25 @@
+# Виртуальное окружение
+.venv/
+venv/
+env/
+
+# Файлы с секретами
+.env
+.env.local
+.env.test
+
+# Кэш Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Тесты и кэш
+.pytest_cache/
+.mypy_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# Docker volumes (если есть)
+pg_data/# created by virtualenv automatically
