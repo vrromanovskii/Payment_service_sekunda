@@ -15,7 +15,7 @@ async def test_consumer_process_success(db_session, mocker):
     mock_post.return_value = AsyncMock(status_code=200)
 
     # Вызываем обработчик напрямую
-    await handle_payment({"payment_id": payment.id})
+    await handle_payment({"payment_id": payment.id}, db_session = db_session)
 
     # Проверяем, что статус изменился
     result = await db_session.execute(select(Payment).where(Payment.id == payment.id))
@@ -43,10 +43,10 @@ async def test_consumer_webhook_retry_and_dlq(db_session, mocker):
     mock_post.side_effect = Exception("Connection error")
 
     # Мокаем broker.publish для DLQ
-    mock_publish = mocker.patch("app.consumers.payment_consumer.broker.publish")
-    mock_publish = AsyncMock()
+    mock_publish = mocker.patch("app.consumers.payment_consumer.broker.publish",
+                                new_callable=AsyncMock)
 
-    await handle_payment({"payment_id": payment.id})
+    await handle_payment({"payment_id": payment.id}, db_session = db_session)
 
     # Проверяем, что broker.publish был вызван (в DLQ)
     mock_publish.assert_called_once()

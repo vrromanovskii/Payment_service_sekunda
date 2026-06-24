@@ -11,6 +11,7 @@ async def test_outbox_record_created(client: AsyncClient, db_session):
     await client.post("/api/v1/payments/", json=payload, headers=headers)
 
     result = await db_session.execute(select(Outbox).where(Outbox.event_type == "payment.created"))
-    outbox = result.scalar_one()
+    outbox = result.scalar_one_or_none()
+    assert outbox is not None
     assert outbox.status == "pending"
     assert outbox.payload["payment_id"] is not None
