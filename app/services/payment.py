@@ -1,21 +1,25 @@
-# app/services/payment.py
+# импортируем асинхронную сессию и функцию select для построения SQL-запросов
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+# импортируем модели таблиц
 from app.db.models import Payment, Outbox
+# импортируем Pydantic-схему для валидированных входных данных
 from app.schemas.payment import PaymentCreate
 import uuid
 from datetime import datetime
 
+
+# асинхронная функция, которая создаёт новый платеж или возвращает существующий при повторном запросе
 async def create_payment(db: AsyncSession, payment_data: PaymentCreate, idempotency_key: str) -> Payment:
-    # 1. Проверяем, нет ли уже платежа с таким idempotency_key
+    # Проверяем, нет ли уже платежа с таким idempotency_key
     existing = await db.execute(
         select(Payment).where(Payment.idempotency_key == idempotency_key)
-    )
-    existing_payment = existing.scalar_one_or_none()
+    ) # выполняем SQL-запрос
+    existing_payment = existing.scalar_one_or_none() #возвращает объект или None, если ничего не нашел
     if existing_payment:
         return existing_payment  # возвращаем существующий, не создаём новый
 
-    # 2. Создаём новый платеж
+    # Создаём новый платеж, если ключ новый
     payment = Payment(
         id=str(uuid.uuid4()),
         amount=payment_data.amount,
@@ -29,7 +33,7 @@ async def create_payment(db: AsyncSession, payment_data: PaymentCreate, idempote
     db.add(payment)
     await db.flush()  # чтобы получить id (но не коммитим)
 
-    # 3. Создаём запись в outbox
+    # Создаём запись в outbox
     outbox = Outbox(
         event_type="payment.created",
         payload={"payment_id": payment.id},
@@ -37,12 +41,13 @@ async def create_payment(db: AsyncSession, payment_data: PaymentCreate, idempote
     )
     db.add(outbox)
 
-    # 4. Коммитим транзакцию — гарантия, что либо всё сохранится, либо ничего
+    # Коммитим транзакцию — гарантия, что либо всё сохранится, либо ничего
     await db.commit()
     await db.refresh(payment)  # обновляем объект (например, для created_at)
 
     return payment
 
+# функция получения платежа по ID
 async def get_payment(db: AsyncSession, payment_id: str) -> Payment | None:
     result = await db.execute(
         select(Payment).where(Payment.id == payment_id)

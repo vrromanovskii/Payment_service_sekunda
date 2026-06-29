@@ -1,30 +1,31 @@
-services:
+services: #описание сервисов (контейнеров), которые будут запущены
   postgres:
-    image: postgres:15-alpine
+    image: postgres:15-alpine #используем Docker-образ postgres:15-alpine
     container_name: payments_postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: payments
     ports:
-      - "5432:5432"
+      - "5432:5432"#внешний порт 5432 (хост, мой комп), внутренний порт 5432 (порт внутри контейнера)
     volumes:
-      - pg_data:/var/lib/postgresql/data
-    healthcheck:
+      - pg_data:/var/lib/postgresql/data #том для зранения БД
+    healthcheck: #проверяет готовность сервера
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   rabbitmq:
-    image: rabbitmq:3-management-alpine
+    image: rabbitmq:3-management-alpine #плагин management предоставляет интерфейс
+      #для управления очередями, обменниками и тд
     container_name: payments_rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "5672:5672" #порт для подключения приложений к кролику
+      - "15672:15672" #порт для веб-интерфейса управления
     healthcheck:
       test: ["CMD", "rabbitmqctl", "status"]
       interval: 10s
@@ -33,17 +34,18 @@ services:
 
   api:
     build:
-      context: .
-      dockerfile: Dockerfile.api
+      context: . #контекст сборки (все необходимые файлы) находится в текущей директории
+      dockerfile: Dockerfile.api # указывает, какой докерфайл использовать для сборки образа
     container_name: payments_api
     ports:
-      - "8000:8000"
-    depends_on:
+      - "8000:8000" # проброс порта, чтобы к API можно было обращаться из браузера по localhost:8000
+    depends_on: # указывает, что апи должен запуститься только после того, как
+      # сервисы postgres и rabbitmq пройдут свои хелсчеки
       postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-    environment:
+    environment: # переменный окружения, которые передаются в контейнер
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/payments
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
       API_KEY: secret-api-key-123
@@ -53,7 +55,7 @@ services:
       context: .
       dockerfile: Dockerfile.consumer
     container_name: payments_consumer
-    depends_on:
+    depends_on: #консьюмер тоже запускается только после готовности БД и брокера
       postgres:
         condition: service_healthy
       rabbitmq:
@@ -64,4 +66,4 @@ services:
       API_KEY: secret-api-key-123
 
 volumes:
-  pg_data:
+  pg_data: #объявляет именованный том pg_data. Он нужен, чтобы данные postgres сохранялись после перезапуска.

@@ -1,5 +1,6 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings # BaseSettings нужен для чтения переменных окружения
 
+#подтягиваем переменные из .env
 class Settings(BaseSettings):
     DATABASE_URL: str
     RABBITMQ_URL: str
@@ -8,4 +9,4 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
 
-settings = Settings()
+settings = Settings() #создаём экземпляр класса Settings
